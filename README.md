@@ -92,3 +92,16 @@ MIT © Philip0910732123
 
 - [patsnap-patent-skill-suite](https://github.com/Philip0910732123/patsnap-patent-skill-suite) — 专利撰写全流程 Skill 套件
 - [patent-oa-analysis-skills](https://github.com/Philip0910732123/patent-oa-analysis-skills) — 专利审查意见分析技能
+
+
+---
+
+## 💬 交流与合作
+
+如需技术交流、问题反馈或商业合作，欢迎扫描下方微信二维码联系作者。
+
+<p align="center">
+  <img src="wechat_qr.jpg" width="200" alt="作者微信二维码" />
+</p>
+
+> 添加时请注明来自 GitHub 仓库，我会优先通过。
