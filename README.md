@@ -1,5 +1,11 @@
 # 专利生物序列导出器 (Patent Sequence Exporter)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-Flask-blue.svg)](https://www.python.org/)
+[![PatSnap Bio API](https://img.shields.io/badge/PatSnap-Bio%20API-2EAD33.svg)](https://open.zhihuiya.com/)
+[![Release v5.0](https://img.shields.io/badge/Release-v5.0-blue.svg)](https://github.com/Philip0910732123/patent-sequence-exporter/releases/tag/v5.0)
+[![Windows](https://img.shields.io/badge/Platform-Windows%2010%2B-blue.svg)](https://www.microsoft.com/)
+
 > 通过智慧芽 Bio OpenAPI 自动提取专利中的生物序列，支持 Excel (.xlsx) 和 FASTA 格式导出。本地运行，API Key 不上传。
 
 ## 功能概览
