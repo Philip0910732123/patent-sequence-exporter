@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专利生物序列导出器 v5</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f0f2f5; color: #333; min-height: 100vh;
+            display: flex; justify-content: center; padding: 40px 20px;
+        }
+        .container { max-width: 1100px; width: 100%; }
+        .header { text-align: center; margin-bottom: 32px; }
+        .header h1 { font-size: 28px; color: #1a1a1a; margin-bottom: 8px; }
+        .header p { color: #666; font-size: 14px; }
+        .card {
+            background: #fff; border-radius: 12px; padding: 32px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 24px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 600; color: #333; margin-bottom: 6px; }
+        .form-group label .required { color: #e74c3c; margin-left: 2px; }
+        .form-group label .hint { font-weight: 400; color: #999; font-size: 12px; margin-left: 8px; }
+        .form-group input, .form-group select {
+            width: 100%; padding: 10px 14px; border: 1px solid #ddd;
+            border-radius: 8px; font-size: 14px; transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #4472C4; }
+        .form-row { display: flex; gap: 16px; }
+        .form-row .form-group { flex: 1; }
+        .api-key-tabs { display: flex; gap: 0; margin-bottom: 12px; }
+        .api-key-tab {
+            flex: 1; padding: 8px 16px; text-align: center; font-size: 13px;
+            cursor: pointer; border: 1px solid #ddd; background: #f9f9f9; color: #666; transition: all 0.2s;
+        }
+        .api-key-tab:first-child { border-radius: 8px 0 0 8px; }
+        .api-key-tab:last-child { border-radius: 0 8px 8px 0; border-left: none; }
+        .api-key-tab.active { background: #4472C4; color: #fff; border-color: #4472C4; }
+        .patent-input-row { display: flex; gap: 8px; align-items: flex-start; }
+        .patent-input-row input { flex: 1; }
+        .btn-search {
+            padding: 10px 18px; background: #f39c12; color: #fff; border: none;
+            border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+            white-space: nowrap; transition: background 0.2s;
+        }
+        .btn-search:hover:not(:disabled) { background: #d68910; }
+        .btn-search:disabled { background: #aaa; cursor: not-allowed; }
+        .btn-primary {
+            width: 100%; padding: 14px; background: #4472C4; color: #fff;
+            border: none; border-radius: 8px; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .btn-primary:hover:not(:disabled) { background: #365fa3; }
+        .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+        .result-area { display: none; margin-top: 24px; }
+        .result-area.show { display: block; }
+        .result-card {
+            background: #fff; border-radius: 12px; padding: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 16px;
+        }
+        .result-success { border-left: 4px solid #27ae60; }
+        .result-error { border-left: 4px solid #e74c3c; }
+        .result-loading { border-left: 4px solid #f39c12; }
+        .result-card h3 { font-size: 16px; margin-bottom: 12px; }
+        .result-stats { display: flex; gap: 24px; flex-wrap: wrap; }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 24px; font-weight: 700; color: #4472C4; }
+        .stat-label { font-size: 12px; color: #999; margin-top: 4px; }
+        .type-dist { margin-top: 16px; }
+        .type-dist-item {
+            display: inline-block; background: #eef2ff; color: #4472C4;
+            padding: 4px 12px; border-radius: 20px; font-size: 13px; margin-right: 8px; margin-bottom: 8px;
+        }
+        .download-btn {
+            display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px;
+            background: #27ae60; color: #fff; border: none; border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none;
+            transition: background 0.2s; margin-right: 12px; margin-top: 12px;
+        }
+        .download-btn:hover { background: #229954; }
+        .spinner {
+            display: inline-block; width: 18px; height: 18px;
+            border: 3px solid #f3f3f3; border-top: 3px solid #4472C4;
+            border-radius: 50%; animation: spin 1s linear infinite;
+            vertical-align: middle; margin-right: 8px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-msg { color: #e74c3c; font-size: 14px; line-height: 1.6; }
+        .advanced-toggle { cursor: pointer; color: #4472C4; font-size: 13px; margin-bottom: 12px; user-select: none; }
+        .advanced-section { display: none; }
+        .advanced-section.show { display: block; }
+        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 24px; }
+        .pn-result-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 16px; border: 1px solid #e0e0e0; border-radius: 8px;
+            margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
+        }
+        .pn-result-item:hover { border-color: #4472C4; background: #f8f9ff; }
+        .pn-result-item .pn-number { font-size: 15px; font-weight: 600; color: #4472C4; }
+        .pn-result-item .pn-title { font-size: 12px; color: #666; margin-top: 4px; }
+        .pn-result-item .pn-applicant { font-size: 12px; color: #999; }
+        .pn-result-item .pn-select-btn {
+            padding: 6px 16px; background: #4472C4; color: #fff; border: none;
+            border-radius: 6px; font-size: 13px; cursor: pointer; white-space: nowrap;
+        }
+        .pn-result-item .pn-select-btn:hover { background: #365fa3; }
+        /* ── 表格样式 ── */
+        .table-card {
+            background: #fff; border-radius: 12px; padding: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 16px;
+        }
+        .table-toolbar {
+            display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap;
+        }
+        .table-toolbar input, .table-toolbar select {
+            padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;
+        }
+        .table-toolbar input { flex: 1; min-width: 200px; }
+        .seq-table-container {
+            overflow-x: auto; max-height: 600px; overflow-y: auto;
+            border-radius: 8px; border: 1px solid #e0e0e0;
+        }
+        .seq-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .seq-table th {
+            background: #4472C4; color: #fff; padding: 10px 8px; text-align: left;
+            position: sticky; top: 0; z-index: 10;
+        }
+        .seq-table th.sortable { cursor: pointer; user-select: none; }
+        .seq-table th.sortable:hover { background: #365fa3; }
+        .seq-table td { padding: 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+        .seq-table tr:hover td { background: #f8f9ff; }
+        .seq-truncated { color: #555; cursor: pointer; font-family: "Courier New", monospace; font-size: 12px; }
+        .seq-truncated:hover { color: #4472C4; }
+        .seq-copy-btn {
+            padding: 4px 12px; background: #27ae60; color: #fff; border: none;
+            border-radius: 4px; font-size: 12px; cursor: pointer; white-space: nowrap;
+        }
+        .seq-copy-btn:hover { background: #229954; }
+        .seq-copy-btn.copied { background: #2ecc71; }
+        .table-info { font-size: 12px; color: #999; white-space: nowrap; }
+        .loc-tag {
+            display: inline-block; background: #eef2ff; color: #4472C4;
+            padding: 2px 8px; border-radius: 4px; font-size: 11px; margin: 1px;
+        }
+        .seq-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: flex; justify-content: center;
+            align-items: center; z-index: 1000;
+        }
+        .seq-modal-content {
+            background: #fff; border-radius: 12px; padding: 32px;
+            max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto;
+        }
+        .seq-modal-close { float: right; font-size: 28px; cursor: pointer; color: #999; line-height: 1; }
+        .seq-modal-close:hover { color: #333; }
+        .seq-modal-seq {
+            font-family: "Courier New", monospace; font-size: 13px; line-height: 1.6;
+            background: #f8f8f8; padding: 16px; border-radius: 8px; margin: 16px 0;
+            word-break: break-all; max-height: 400px; overflow-y: auto;
+        }
+        /* ── 历史记录弹窗 ── */
+        .history-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: none; justify-content: center;
+            align-items: flex-start; z-index: 1100; padding: 40px 20px; overflow-y: auto;
+        }
+        .history-modal.show { display: flex; }
+        .history-modal-content {
+            background: #fff; border-radius: 12px; padding: 32px;
+            max-width: 1000px; width: 100%; max-height: 85vh; overflow-y: auto;
+            position: relative;
+        }
+        .history-modal-close { float: right; font-size: 28px; cursor: pointer; color: #999; line-height: 1; }
+        .history-modal-close:hover { color: #333; }
+        .history-list { margin-top: 16px; }
+        .history-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 16px; border: 1px solid #e0e0e0; border-radius: 8px;
+            margin-bottom: 8px; transition: all 0.2s; cursor: pointer;
+        }
+        .history-item:hover { border-color: #4472C4; background: #f8f9ff; }
+        .history-item .hist-time { font-size: 13px; font-weight: 600; color: #4472C4; }
+        .history-item .hist-patent { font-size: 13px; color: #333; margin-top: 4px; }
+        .history-item .hist-meta { font-size: 12px; color: #999; margin-top: 2px; }
+        .history-item .hist-actions { display: flex; gap: 8px; }
+        .hist-btn {
+            padding: 6px 14px; border: none; border-radius: 6px; font-size: 12px;
+            cursor: pointer; white-space: nowrap; transition: background 0.2s;
+        }
+        .hist-btn-view { background: #4472C4; color: #fff; }
+        .hist-btn-view:hover { background: #365fa3; }
+        .hist-btn-delete { background: #e74c3c; color: #fff; }
+        .hist-btn-delete:hover { background: #c0392b; }
+        .hist-btn-download { background: #27ae60; color: #fff; }
+        .hist-btn-download:hover { background: #229954; }
+        .hist-empty { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+        .history-detail { display: none; margin-top: 16px; }
+        .history-detail.show { display: block; }
+        .hist-back {
+            padding: 8px 16px; background: #f0f2f5; border: none; border-radius: 6px;
+            font-size: 13px; cursor: pointer; margin-bottom: 16px; color: #333;
+        }
+        .hist-back:hover { background: #e0e0e0; }
+        .hist-detail-stats { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧬 专利生物序列导出器</h1>
+            <p>通过智慧芽 Bio OpenAPI 提取专利序列，支持表格预览 / Excel / FASTA 导出</p>
+        </div>
+
+        <div class="card">
+            <!-- API Key -->
+            <div class="form-group">
+                <label>API Key <span class="required">*</span></label>
+                <div class="api-key-tabs">
+                    <div class="api-key-tab active" onclick="switchApiKeyTab('direct')">直接输入</div>
+                    <div class="api-key-tab" onclick="switchApiKeyTab('file')">从文件读取</div>
+                </div>
+                <div id="apikey-direct">
+                    <input type="password" id="api_key" placeholder="粘贴 API Key">
+                </div>
+                <div id="apikey-file" style="display:none">
+                    <input type="text" id="api_key_file" placeholder="文件路径，如 C:\Users\...\credentials.md">
+                </div>
+            </div>
+
+            <!-- 专利号 + 智能查找 -->
+            <div class="form-group">
+                <label>专利号 <span class="required">*</span> <span class="hint">输入专利公开号，后台自动转换为UUID；不确定可点核对专利号</span></label>
+                <div class="patent-input-row">
+                    <input type="text" id="patent_number" placeholder="如 WO2004050828A2、US20210000123A1、CN11205304B1">
+                    <button class="btn-search" id="search-pn-btn" onclick="searchPatentPn()">🔍 核对专利号</button>
+                </div>
+                <div style="color:#e74c3c;font-size:12px;margin-top:4px;font-weight:400;">⚠ 必须是完整公开号，需带上字母后缀（如 A1、B1、A2 等）；系统会自动转换为UUID查找</div>
+            </div>
+
+            <!-- 专利查找结果区域 -->
+            <div id="pn-search-area" style="display:none;margin-bottom:20px;"></div>
+
+            <!-- Seq ID 范围 -->
+            <div class="form-group">
+                <label>Seq ID 范围 <span class="required">*</span> <span class="hint">如 1-50、1,5,10,23,24；支持空格分隔（如 1 2 3 自动转为 1,2,3）</span></label>
+                <input type="text" id="seq_id_range" placeholder="如 1-50、1,5,10,23,24 或 1 2 3">
+            </div>
+
+            <!-- 输出格式 -->
+            <div class="form-row">
+                <div class="form-group">
+                    <label>输出格式</label>
+                    <select id="output_format">
+                        <option value="excel">Excel (.xlsx)</option>
+                        <option value="fasta">FASTA (.fasta)</option>
+                        <option value="both">两者都要</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 高级选项 -->
+            <div class="advanced-toggle" onclick="toggleAdvanced()">
+                <span id="advanced-arrow">▶</span> 高级选项（序列类型 / 长度过滤）
+            </div>
+            <div class="advanced-section" id="advanced-section">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>序列类型过滤 <span class="hint">可选</span></label>
+                        <select id="sequence_type">
+                            <option value="">全部</option>
+                            <option value="PROTEIN">PROTEIN</option>
+                            <option value="NUCLEOTIDE">NUCLEOTIDE</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>长度范围 <span class="hint">可选</span></label>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input type="number" id="seq_length_start" placeholder="起始" style="width:80px">
+                            <span>—</span>
+                            <input type="number" id="seq_length_end" placeholder="结束" style="width:80px">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 提交按钮 -->
+            <button class="btn-primary" id="submit-btn" onclick="submitExtract()">
+                开始提取序列
+            </button>
+            <div style="text-align:center;margin-top:12px;">
+                <button class="hist-btn hist-btn-view" style="padding:8px 24px;font-size:13px;" onclick="openHistoryModal()">📋 历史记录</button>
+            </div>
+        </div>
+
+        <!-- 结果区域 -->
+        <div class="result-area" id="result-area"></div>
+
+        <!-- 序列详情弹窗 -->
+        <div id="seq-modal" class="seq-modal" style="display:none;">
+            <div class="seq-modal-content">
+                <span class="seq-modal-close" onclick="closeSeqModal()">&times;</span>
+                <h3 id="seq-modal-title"></h3>
+                <div class="seq-modal-seq" id="seq-modal-seq"></div>
+                <button class="seq-copy-btn" style="padding:8px 20px;font-size:14px;" onclick="copyModalSequence()">📋 复制完整序列</button>
+            </div>
+        </div>
+
+        <!-- 历史记录弹窗 -->
+        <div id="history-modal" class="history-modal">
+            <div class="history-modal-content">
+                <span class="history-modal-close" onclick="closeHistoryModal()">&times;</span>
+                <h3>📋 历史记录</h3>
+                <div id="history-list" class="history-list"></div>
+                <div id="history-detail" class="history-detail"></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            专利生物序列导出器 v5 · 基于 智慧芽 Bio OpenAPI · 本地运行，API Key 不上传
+        </div>
+    </div>
+    <script>
+        var allSequences = [];
+        var currentSort = { field: null, asc: true };
+        var currentModalSeqId = null;
+
+        function switchApiKeyTab(mode) {
+            var tabs = document.querySelectorAll('.api-key-tab');
+            tabs[0].classList.toggle('active', mode === 'direct');
+            tabs[1].classList.toggle('active', mode === 'file');
+            document.getElementById('apikey-direct').style.display = mode === 'direct' ? '' : 'none';
+            document.getElementById('apikey-file').style.display = mode === 'file' ? '' : 'none';
+        }
+
+        function toggleAdvanced() {
+            var section = document.getElementById('advanced-section');
+            var arrow = document.getElementById('advanced-arrow');
+            var isOpen = section.classList.toggle('show');
+            arrow.textContent = isOpen ? '▼' : '▶';
+        }
+
+        function getApiKey() {
+            var direct = document.getElementById('api_key').value.trim();
+            var file = document.getElementById('api_key_file').value.trim();
+            return { api_key: direct, api_key_file: file };
+        }
+
+        function searchPatentPn() {
+            var query = document.getElementById('patent_number').value.trim();
+            if (!query) { showPnSearchResult('error', '请先在专利号输入框中输入内容'); return; }
+            var keys = getApiKey();
+            if (!keys.api_key && !keys.api_key_file) { showPnSearchResult('error', '请先提供 API Key'); return; }
+            var btn = document.getElementById('search-pn-btn');
+            btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 查找中...';
+            showPnSearchResult('loading', '<span class="spinner"></span> 正在查找标准公开号...');
+            fetch('/api/search-pn', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: keys.api_key, api_key_file: keys.api_key_file, query: query })
+            }).then(function(resp) { return resp.json(); }).then(function(data) {
+                btn.disabled = false; btn.innerHTML = '🔍 核对专利号';
+                if (data.success) { renderPnResults(data.results); }
+                else { showPnSearchResult('error', '<strong>查找失败</strong><br><br>' + escapeHtml(data.error || '未找到匹配专利')); }
+            }).catch(function(err) {
+                btn.disabled = false; btn.innerHTML = '🔍 核对专利号';
+                showPnSearchResult('error', '<strong>请求失败</strong><br><br>' + escapeHtml(err.message));
+            });
+        }
+
+        function renderPnResults(results) {
+            var area = document.getElementById('pn-search-area');
+            area.style.display = 'block';
+            if (!results || results.length === 0) {
+                area.innerHTML = '<div class="result-card result-error"><strong>未找到匹配的专利</strong></div>'; return;
+            }
+            var html = '<div class="result-card result-success"><h3>✅ 找到 ' + results.length + ' 条匹配</h3><p style="color:#999;font-size:13px;margin-bottom:12px;">点击「使用此公开号」填入专利号输入框</p>';
+            results.forEach(function(r) {
+                var titleStr = r.title ? escapeHtml(r.title) : '';
+                var applicantStr = r.applicant ? ' | 申请人: ' + escapeHtml(r.applicant) : '';
+                var apnoStr = r.apno ? ' | 申请号: ' + escapeHtml(r.apno) : '';
+                var authStr = r.authority ? ' [' + escapeHtml(r.authority) + ']' : '';
+                html += '<div class="pn-result-item" onclick="selectPn(\'' + escapeHtml(r.pn) + '\', \'' + escapeHtml(r.patent_id || '') + '\')">' +
+                    '<div><div class="pn-number">' + escapeHtml(r.pn) + authStr + '</div>' +
+                    '<div class="pn-title">' + titleStr + applicantStr + apnoStr + '</div></div>' +
+                    '<button class="pn-select-btn">使用此公开号</button></div>';
+            });
+            area.innerHTML = html + '</div>';
+        }
+
+        function selectPn(pn, patentId) {
+            document.getElementById('patent_number').value = pn;
+            // patent_id 隐藏，由后台自动转换
+            document.getElementById('pn-search-area').style.display = 'none';
+            document.getElementById('pn-search-area').innerHTML = '';
+        }
+
+        function showPnSearchResult(type, content) {
+            var area = document.getElementById('pn-search-area');
+            area.style.display = 'block';
+            var cls = type === 'error' ? 'result-error' : (type === 'loading' ? 'result-loading' : 'result-success');
+            area.innerHTML = '<div class="result-card ' + cls + '">' + content + '</div>';
+        }
+
+        function submitExtract() {
+            var keys = getApiKey();
+            var patentNumber = document.getElementById('patent_number').value.trim();
+            var patentId = '';  // UUID 隐藏，后台自动转换
+            var seqIdRange = document.getElementById('seq_id_range').value.trim();
+            // 空格分隔自动转逗号
+            if (seqIdRange.indexOf(' ') !== -1 && seqIdRange.indexOf(',') === -1 && seqIdRange.indexOf('-') === -1) {
+                seqIdRange = seqIdRange.split(/\s+/).join(',');
+            }
+            var outputFormat = document.getElementById('output_format').value;
+            var sequenceType = document.getElementById('sequence_type').value;
+            var seqLengthStart = document.getElementById('seq_length_start').value;
+            var seqLengthEnd = document.getElementById('seq_length_end').value;
+            if (!keys.api_key && !keys.api_key_file) { showResult('error', '请提供 API Key'); return; }
+            if (!patentNumber && !patentId) { showResult('error', '请提供专利号'); return; }
+            if (!seqIdRange) { showResult('error', '请提供 Seq ID 范围'); return; }
+            if (seqIdRange.toLowerCase() === 'all' || seqIdRange === '全部') {
+                showResult('error', '不支持 "all" 指令，请输入具体的 Seq ID 范围，如 1-50、1,5,10,23,24 或 1 2 3'); return;
+            }
+            var btn = document.getElementById('submit-btn');
+            btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 正在提取...';
+            showResult('loading', '<span class="spinner"></span> 正在调用 API 提取序列，请稍候...');
+            fetch('/api/extract', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    api_key: keys.api_key, api_key_file: keys.api_key_file,
+                    patent_number: patentNumber, patent_id: patentId,
+                    seq_id_range: seqIdRange, output_format: outputFormat,
+                    sequence_type: sequenceType,
+                    seq_length_start: seqLengthStart || null,
+                    seq_length_end: seqLengthEnd || null
+                })
+            }).then(function(resp) { return resp.json(); }).then(function(data) {
+                btn.disabled = false; btn.innerHTML = '开始提取序列';
+                if (data.success) { renderSuccess(data); }
+                else { showResult('error', '<strong>提取失败</strong><br><br>' + escapeHtml(data.error || '未知错误')); }
+            }).catch(function(err) {
+                btn.disabled = false; btn.innerHTML = '开始提取序列';
+                showResult('error', '<strong>请求失败</strong><br><br>' + escapeHtml(err.message));
+            });
+        }
+
+        function renderSuccess(data) {
+            var typeDistHtml = '';
+            if (data.type_distribution) {
+                typeDistHtml = '<div class="type-dist">';
+                Object.keys(data.type_distribution).forEach(function(k) {
+                    typeDistHtml += '<span class="type-dist-item">' + escapeHtml(k) + ': ' + data.type_distribution[k] + '</span>';
+                });
+                typeDistHtml += '</div>';
+            }
+            var downloadHtml = '';
+            if (data.files && data.files.length > 0) {
+                data.files.forEach(function(f) {
+                    downloadHtml += '<a class="download-btn" href="' + f.url + '" download="' + f.name + '">⬇ 下载 ' + escapeHtml(f.name) + '</a>';
+                });
+            }
+            var tableHtml = '<div id="table-section" class="table-card" style="display:none;">' +
+                '<h3>📋 序列结果表格</h3>' +
+                '<div class="table-toolbar">' +
+                '<input type="text" id="table-search" placeholder="🔍 搜索序列号、类型、序列内容..." oninput="filterTable()">' +
+                '<select id="table-type-filter" onchange="filterTable()"><option value="">全部类型</option></select>' +
+                '<button class="seq-copy-btn" style="padding:8px 16px;font-size:13px;" onclick="copySelectedAsFasta()">📋 复制选中为FASTA</button>' +
+                '<span id="table-count" class="table-info"></span>' +
+                '</div>' +
+                '<div class="seq-table-container"><table class="seq-table">' +
+                '<thead><tr>' +
+                '<th style="width:36px;cursor:default;"><input type="checkbox" onclick="toggleAll(this)"></th>' +
+                '<th class="sortable" onclick="sortTable(\'seq_id_no\')">SEQ ID NO ↕</th>' +
+                '<th class="sortable" onclick="sortTable(\'sequence_type\')">类型 ↕</th>' +
+                '<th class="sortable" onclick="sortTable(\'s_len\')">长度 ↕</th>' +
+                '<th>位置</th>' +
+                '<th>序列 (前50字符，点击展开)</th>' +
+                '<th>操作</th>' +
+                '</tr></thead><tbody id="table-body"></tbody>' +
+                '</table></div></div>';
+            var html = '<div class="result-card result-success"><h3>✅ 提取成功</h3>' +
+                '<div class="result-stats">' +
+                '<div class="stat-item"><div class="stat-value">' + escapeHtml(data.patent) + '</div><div class="stat-label">专利号</div></div>' +
+                '<div class="stat-item"><div class="stat-value">' + data.total + '</div><div class="stat-label">API 总数</div></div>' +
+                '<div class="stat-item"><div class="stat-value">' + data.fetched + '</div><div class="stat-label">已导出</div></div>' +
+                '</div>' + typeDistHtml + downloadHtml + '</div>' + tableHtml;
+            var area = document.getElementById('result-area');
+            area.className = 'result-area show';
+            area.innerHTML = html;
+            if (data.sequences && data.sequences.length > 0) { renderTable(data.sequences); }
+        }
+
+        function showResult(type, content) {
+            var area = document.getElementById('result-area');
+            area.className = 'result-area show';
+            var cls = type === 'error' ? 'result-error' : (type === 'loading' ? 'result-loading' : 'result-success');
+            area.innerHTML = '<div class="result-card ' + cls + '">' + content + '</div>';
+        }
+
+        function escapeHtml(str) {
+            if (str == null) return '';
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+
+        /* ── 表格功能 ── */
+        function renderTable(sequences) {
+            allSequences = sequences || [];
+            var container = document.getElementById('table-section');
+            if (!allSequences.length) { container.style.display = 'none'; return; }
+            container.style.display = 'block';
+            var types = [];
+            allSequences.forEach(function(s) { if (s.sequence_type && types.indexOf(s.sequence_type) === -1) types.push(s.sequence_type); });
+            var typeFilter = document.getElementById('table-type-filter');
+            typeFilter.innerHTML = '<option value="">全部类型</option>' + types.map(function(t) { return '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>'; }).join('');
+            var locKeys = [];
+            allSequences.forEach(function(s) { if (s.location) Object.keys(s.location).forEach(function(k) { if (locKeys.indexOf(k) === -1) locKeys.push(k); }); });
+            window._locKeys = locKeys;
+            filterTable();
+        }
+
+        function filterTable() {
+            var search = (document.getElementById('table-search').value || '').toLowerCase();
+            var typeFilter = document.getElementById('table-type-filter').value;
+            var filtered = allSequences.filter(function(s) {
+                if (typeFilter && s.sequence_type !== typeFilter) return false;
+                if (search) {
+                    var hay = (s.seq_id_no + ' ' + s.seq_id + ' ' + s.sequence_type + ' ' + s.s_len + ' ' + s.s_sequence + ' ' + JSON.stringify(s.location)).toLowerCase();
+                    if (hay.indexOf(search) === -1) return false;
+                }
+                return true;
+            });
+            if (currentSort.field) {
+                filtered.sort(function(a, b) {
+                    var av, bv;
+                    if (currentSort.field === 's_len') { av = Number(a[currentSort.field]) || 0; bv = Number(b[currentSort.field]) || 0; }
+                    else { av = String(a[currentSort.field] || ''); bv = String(b[currentSort.field] || ''); }
+                    if (av < bv) return currentSort.asc ? -1 : 1;
+                    if (av > bv) return currentSort.asc ? 1 : -1;
+                    return 0;
+                });
+            }
+            renderTableRows(filtered);
+            document.getElementById('table-count').textContent = '显示 ' + filtered.length + '/' + allSequences.length + ' 条';
+        }
+
+        function renderTableRows(rows) {
+            var tbody = document.getElementById('table-body');
+            if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#999;">无匹配结果</td></tr>'; return; }
+            var locKeys = window._locKeys || [];
+            var html = '';
+            rows.forEach(function(s) {
+                var seqPreview = s.s_sequence ? s.s_sequence.substring(0, 50) : '';
+                var hasMore = s.s_sequence && s.s_sequence.length > 50;
+                var locHtml = '';
+                locKeys.forEach(function(k) {
+                    var v = s.location ? s.location[k] : '';
+                    if (v) locHtml += '<span class="loc-tag">' + k + ': ' + escapeHtml(v) + '</span>';
+                });
+                html += '<tr>' +
+                    '<td><input type="checkbox" class="row-checkbox" data-seq-id="' + s.seq_id + '"></td>' +
+                    '<td>' + escapeHtml(s.seq_id_no || s.seq_id || '') + '</td>' +
+                    '<td>' + escapeHtml(s.sequence_type || '') + '</td>' +
+                    '<td>' + s.s_len + '</td>' +
+                    '<td>' + locHtml + '</td>' +
+                    '<td><span class="seq-truncated" onclick="showFullSequence(\'' + s.seq_id + '\')">' + escapeHtml(seqPreview) + (hasMore ? '... [点击展开]' : '') + '</span></td>' +
+                    '<td><button class="seq-copy-btn" onclick="copySequence(\'' + s.seq_id + '\', this)">复制</button></td>' +
+                    '</tr>';
+            });
+            tbody.innerHTML = html;
+        }
+
+        function sortTable(field) {
+            if (currentSort.field === field) { currentSort.asc = !currentSort.asc; }
+            else { currentSort.field = field; currentSort.asc = true; }
+            filterTable();
+        }
+
+        function toggleAll(checkbox) {
+            var checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(function(cb) { cb.checked = checkbox.checked; });
+        }
+
+        function copySequence(seqId, btn) {
+            var s = allSequences.find(function(x) { return String(x.seq_id) === String(seqId); });
+            if (!s) return;
+            var text = '>' + (s.seq_id_no || s.seq_id) + '\n' + s.s_sequence;
+            copyToClipboard(text);
+            if (btn) {
+                var orig = btn.textContent;
+                btn.textContent = '✓ 已复制'; btn.classList.add('copied');
+                setTimeout(function() { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+            }
+        }
+
+        function copySelectedAsFasta() {
+            var checkboxes = document.querySelectorAll('.row-checkbox:checked');
+            if (!checkboxes.length) { alert('请先勾选要复制的序列'); return; }
+            var lines = [];
+            checkboxes.forEach(function(cb) {
+                var seqId = cb.getAttribute('data-seq-id');
+                var s = allSequences.find(function(x) { return String(x.seq_id) === String(seqId); });
+                if (s) {
+                    lines.push('>' + (s.seq_id_no || s.seq_id) + '|type:' + s.sequence_type + '|len:' + s.s_len);
+                    lines.push(s.s_sequence);
+                }
+            });
+            copyToClipboard(lines.join('\n'));
+            alert('已复制 ' + checkboxes.length + ' 条序列到剪贴板');
+        }
+
+        function showFullSequence(seqId) {
+            var s = allSequences.find(function(x) { return String(x.seq_id) === String(seqId); });
+            if (!s) return;
+            currentModalSeqId = seqId;
+            document.getElementById('seq-modal-title').textContent = 'SEQ ID NO: ' + (s.seq_id_no || '') + ' | ' + s.sequence_type + ' | 长度: ' + s.s_len;
+            document.getElementById('seq-modal-seq').textContent = s.s_sequence;
+            document.getElementById('seq-modal').style.display = 'flex';
+        }
+
+        function closeSeqModal() { document.getElementById('seq-modal').style.display = 'none'; }
+
+        function copyModalSequence() {
+            var s = allSequences.find(function(x) { return String(x.seq_id) === String(currentModalSeqId); });
+            if (s) { copyToClipboard(s.s_sequence); alert('序列已复制到剪贴板'); }
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).catch(function() { _fallbackCopy(text); });
+            } else { _fallbackCopy(text); }
+        }
+
+        function _fallbackCopy(text) {
+            var ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.top = '-9999px';
+            document.body.appendChild(ta); ta.select();
+            try { document.execCommand('copy'); } catch(e) {}
+            document.body.removeChild(ta);
+        }
+
+        document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closeSeqModal(); closeHistoryModal(); } });
+        document.getElementById('seq-modal').addEventListener('click', function(e) { if (e.target === this) closeSeqModal(); });
+        document.getElementById('history-modal').addEventListener('click', function(e) { if (e.target === this) closeHistoryModal(); });
+
+        /* ── 历史记录功能 ── */
+        function openHistoryModal() {
+            document.getElementById('history-modal').classList.add('show');
+            document.getElementById('history-list').style.display = 'block';
+            document.getElementById('history-detail').classList.remove('show');
+            loadHistory();
+        }
+
+        function closeHistoryModal() {
+            document.getElementById('history-modal').classList.remove('show');
+        }
+
+        function loadHistory() {
+            var listEl = document.getElementById('history-list');
+            listEl.innerHTML = '<div class="hist-empty">加载中...</div>';
+            fetch('/api/history').then(function(resp) { return resp.json(); }).then(function(data) {
+                if (!data.success || !data.history || data.history.length === 0) {
+                    listEl.innerHTML = '<div class="hist-empty">暂无历史记录</div>';
+                    return;
+                }
+                var html = '';
+                data.history.forEach(function(r) {
+                    var typeDist = '';
+                    if (r.type_distribution) {
+                        Object.keys(r.type_distribution).forEach(function(k) {
+                            typeDist += '<span class="type-dist-item">' + escapeHtml(k) + ': ' + r.type_distribution[k] + '</span>';
+                        });
+                    }
+                    var filesHtml = '';
+                    if (r.files && r.files.length > 0) {
+                        r.files.forEach(function(f) {
+                            filesHtml += '<a class="download-btn" href="/download/' + encodeURIComponent(f.name) + '" download="' + escapeHtml(f.name) + '" style="padding:4px 12px;font-size:12px;margin:4px 4px 0 0;">⬇ ' + escapeHtml(f.name) + '</a>';
+                        });
+                    }
+                    html += '<div class="history-item" style="flex-direction:column;align-items:flex-start;">' +
+                        '<div style="width:100%;display:flex;justify-content:space-between;align-items:center;">' +
+                        '<div>' +
+                        '<div class="hist-time">' + escapeHtml(r.timestamp_display || r.timestamp) + '</div>' +
+                        '<div class="hist-patent">专利: ' + escapeHtml(r.patent || r.patent_number || '') + ' | Seq ID: ' + escapeHtml(r.seq_id_range || '') + '</div>' +
+                        '<div class="hist-meta">序列总数: ' + r.total + ' | 格式: ' + escapeHtml(r.output_format || '') + '</div>' +
+                        '</div>' +
+                        '<div class="hist-actions">' +
+                        '<button class="hist-btn hist-btn-view" onclick="viewHistoryDetail(\'' + r.filename + '\')">查看详情</button>' +
+                        '<button class="hist-btn hist-btn-download" onclick="downloadHistoryFile(\'' + r.filename + '\', \'excel\')">Excel</button>' +
+                        '<button class="hist-btn hist-btn-download" onclick="downloadHistoryFile(\'' + r.filename + '\', \'fasta\')">FASTA</button>' +
+                        '<button class="hist-btn hist-btn-download" onclick="downloadHistoryFile(\'' + r.filename + '\', \'json\')">JSON</button>' +
+                        '<button class="hist-btn hist-btn-delete" onclick="deleteHistoryRecord(\'' + r.filename + '\')">删除</button>' +
+                        '</div>' +
+                        '</div>' +
+                        '<div style="margin-top:8px;">' + typeDist + filesHtml + '</div>' +
+                        '</div>';
+                });
+                listEl.innerHTML = html;
+            }).catch(function(err) {
+                listEl.innerHTML = '<div class="hist-empty">加载失败: ' + escapeHtml(err.message) + '</div>';
+            });
+        }
+
+        function viewHistoryDetail(filename) {
+            var detailEl = document.getElementById('history-detail');
+            detailEl.innerHTML = '<div class="hist-empty">加载中...</div>';
+            detailEl.classList.add('show');
+            document.getElementById('history-list').style.display = 'none';
+            fetch('/api/history/' + encodeURIComponent(filename)).then(function(resp) { return resp.json(); }).then(function(data) {
+                if (!data.success) {
+                    detailEl.innerHTML = '<div class="hist-empty">加载失败</div>';
+                    return;
+                }
+                var d = data.data;
+                var typeDist = '';
+                if (d.type_distribution) {
+                    Object.keys(d.type_distribution).forEach(function(k) {
+                        typeDist += '<span class="type-dist-item">' + escapeHtml(k) + ': ' + d.type_distribution[k] + '</span>';
+                    });
+                }
+                var filesHtml = '';
+                if (d.files && d.files.length > 0) {
+                    d.files.forEach(function(f) {
+                        filesHtml += '<a class="download-btn" href="/download/' + encodeURIComponent(f.name) + '" download="' + escapeHtml(f.name) + '" style="padding:6px 16px;font-size:13px;margin:4px;">⬇ ' + escapeHtml(f.name) + '</a>';
+                    });
+                }
+                var html = '<button class="hist-back" onclick="backToHistoryList()">← 返回列表</button>' +
+                    '<div class="result-card result-success">' +
+                    '<h3>📋 ' + escapeHtml(d.timestamp_display || d.timestamp) + '</h3>' +
+                    '<div class="hist-detail-stats">' +
+                    '<div class="stat-item"><div class="stat-value">' + escapeHtml(d.patent || '') + '</div><div class="stat-label">专利号</div></div>' +
+                    '<div class="stat-item"><div class="stat-value">' + (d.total || 0) + '</div><div class="stat-label">序列总数</div></div>' +
+                    '<div class="stat-item"><div class="stat-value">' + escapeHtml(d.seq_id_range || '') + '</div><div class="stat-label">Seq ID 范围</div></div>' +
+                    '<div class="stat-item"><div class="stat-value">' + escapeHtml(d.output_format || '') + '</div><div class="stat-label">输出格式</div></div>' +
+                    '</div>' + typeDist + filesHtml +
+                    '</div>';
+                if (d.sequences && d.sequences.length > 0) {
+                    html += '<div class="table-card">' +
+                        '<h3>序列结果表格</h3>' +
+                        '<div class="table-toolbar">' +
+                        '<input type="text" id="hist-table-search" placeholder="🔍 搜索..." oninput="filterHistoryTable()">' +
+                        '<span id="hist-table-count" class="table-info"></span>' +
+                        '</div>' +
+                        '<div class="seq-table-container"><table class="seq-table">' +
+                        '<thead><tr>' +
+                        '<th>SEQ ID NO</th><th>类型</th><th>长度</th><th>位置</th><th>序列 (前50字符)</th><th>操作</th>' +
+                        '</tr></thead><tbody id="hist-table-body"></tbody>' +
+                        '</table></div></div>';
+                }
+                detailEl.innerHTML = html;
+                if (d.sequences && d.sequences.length > 0) {
+                    window._histSequences = d.sequences;
+                    renderHistoryTable(d.sequences);
+                }
+            }).catch(function(err) {
+                detailEl.innerHTML = '<div class="hist-empty">加载失败: ' + escapeHtml(err.message) + '</div>';
+            });
+        }
+
+        function renderHistoryTable(sequences) {
+            var locKeys = [];
+            sequences.forEach(function(s) { if (s.location) Object.keys(s.location).forEach(function(k) { if (locKeys.indexOf(k) === -1) locKeys.push(k); }); });
+            window._histLocKeys = locKeys;
+            filterHistoryTable();
+        }
+
+        function filterHistoryTable() {
+            var search = (document.getElementById('hist-table-search').value || '').toLowerCase();
+            var filtered = (window._histSequences || []).filter(function(s) {
+                if (search) {
+                    var hay = (s.seq_id_no + ' ' + s.seq_id + ' ' + s.sequence_type + ' ' + s.s_len + ' ' + s.s_sequence + ' ' + JSON.stringify(s.location)).toLowerCase();
+                    if (hay.indexOf(search) === -1) return false;
+                }
+                return true;
+            });
+            var locKeys = window._histLocKeys || [];
+            var tbody = document.getElementById('hist-table-body');
+            if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#999;">无匹配结果</td></tr>'; return; }
+            var html = '';
+            filtered.forEach(function(s) {
+                var seqPreview = s.s_sequence ? s.s_sequence.substring(0, 50) : '';
+                var hasMore = s.s_sequence && s.s_sequence.length > 50;
+                var locHtml = '';
+                locKeys.forEach(function(k) {
+                    var v = s.location ? s.location[k] : '';
+                    if (v) locHtml += '<span class="loc-tag">' + k + ': ' + escapeHtml(v) + '</span>';
+                });
+                html += '<tr>' +
+                    '<td>' + escapeHtml(s.seq_id_no || s.seq_id || '') + '</td>' +
+                    '<td>' + escapeHtml(s.sequence_type || '') + '</td>' +
+                    '<td>' + s.s_len + '</td>' +
+                    '<td>' + locHtml + '</td>' +
+                    '<td><span class="seq-truncated">' + escapeHtml(seqPreview) + (hasMore ? '...' : '') + '</span></td>' +
+                    '<td><button class="seq-copy-btn" onclick="copyHistSequence(\'' + s.seq_id + '\', this)">复制</button></td>' +
+                    '</tr>';
+            });
+            tbody.innerHTML = html;
+            document.getElementById('hist-table-count').textContent = '显示 ' + filtered.length + '/' + (window._histSequences || []).length + ' 条';
+        }
+
+        function copyHistSequence(seqId, btn) {
+            var s = (window._histSequences || []).find(function(x) { return String(x.seq_id) === String(seqId); });
+            if (!s) return;
+            copyToClipboard('>' + (s.seq_id_no || s.seq_id) + '\n' + s.s_sequence);
+            if (btn) {
+                var orig = btn.textContent;
+                btn.textContent = '✓'; btn.classList.add('copied');
+                setTimeout(function() { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+            }
+        }
+
+        function backToHistoryList() {
+            document.getElementById('history-detail').classList.remove('show');
+            document.getElementById('history-list').style.display = 'block';
+        }
+
+        function deleteHistoryRecord(filename) {
+            if (!confirm('确认删除此历史记录？此操作不可撤销。')) return;
+            fetch('/api/history/' + encodeURIComponent(filename), { method: 'DELETE' })
+                .then(function(resp) { return resp.json(); })
+                .then(function(data) {
+                    if (data.success) { loadHistory(); }
+                    else { alert('删除失败: ' + (data.error || '')); }
+                })
+                .catch(function(err) { alert('删除失败: ' + err.message); });
+        }
+
+        function downloadHistoryFile(filename, fmt) {
+            window.location.href = '/api/history/' + encodeURIComponent(filename) + '/download/' + fmt;
+        }
+    </script>
+</body>
+</html>
