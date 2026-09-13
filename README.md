@@ -6,18 +6,43 @@
 [![Release v6.0](https://img.shields.io/badge/Release-v6.0-blue.svg)](https://github.com/Philip0910732123/patent-sequence-exporter/releases/tag/v6.0)
 [![Windows](https://img.shields.io/badge/Platform-Windows%2010%2B-blue.svg)](https://www.microsoft.com/)
 
-> 通过智慧芽 Bio OpenAPI 自动提取专利中的生物序列，支持 Excel (.xlsx) 和 FASTA 格式导出。本地运行，API Key 不上传。
+> 通过智慧芽 Bio OpenAPI 自动提取专利中的生物序列，支持 Excel (.xlsx) 和 FASTA 格式导出。两种使用方式，按需选择。
+
+## 两种使用方式
+
+| 方式 | 适合谁 | 说明 |
+|------|--------|------|
+| **📦 桌面 exe** | 所有用户 | 双击即用，无需 Python，无需 LLM，浏览器内操作（单专利） |
+| **🤖 AI Skill** | AI 平台开发者 | 导入 AI Coding 平台，支持批量多专利提取，可嵌入工作流，支持二创 |
+
+### 桌面 exe 版本（免 LLM）
+
+- 双击 `patent-sequence-exporter-v6.exe` → 浏览器自动打开 → 输入专利号 + API Key → 提取 → 下载 Excel/FASTA
+- 无需安装任何环境，仅需要智慧芽 API Key
+- 下载地址：[最新 Release](https://github.com/Philip0910732123/patent-sequence-exporter/releases)
+- 注意：exe 版本为**单专利提取**，如需批量多专利提取请使用 AI Skill 版本
+
+### AI Skill 版本（需 LLM）
+
+- 将 `skill/` 目录导入 AI Coding 平台即可作为 Skill 调用
+- LLM 负责解析用户意图（专利号、筛选条件）、调用脚本、展示结果
+- Python 脚本负责专利号标准化、分页全量序列提取、Excel/FASTA/JSON 导出
+- **支持批量多专利提取**（exe 版本不支持），带断点恢复和进度回调
+- 消耗大模型 token，由用户按需选择
+- 其他开发者可 fork 做二创，嵌入自己的工作流
+
+---
 
 ## 功能概览
 
 - **自动提取**：输入专利号 + Seq ID 范围，自动调用智慧芽 Bio OpenAPI 提取序列
-- **多格式导出**：Excel (.xlsx) 表格预览 / FASTA 序列文件
+- **多格式导出**：Excel (.xlsx) 表格预览 / FASTA 序列文件 / JSON
 - **高级过滤**：按序列类型（蛋白质/核酸）和长度范围筛选
 - **历史记录**：每次提取结果自动保存到 exe 同目录 `history/` 文件夹，支持查看、重新下载、删除
 - **自动打开浏览器**：双击 exe 后自动打开浏览器，无需手动输入地址
 - **本地运行**：Flask Web 应用，所有数据在本地处理，API Key 不上传到任何第三方服务器
 
-## 快速开始
+## 桌面 exe 使用方式
 
 ### 第一步：获取 API Key
 
@@ -52,15 +77,53 @@
 
 提取完成后，文件保存在 exe 同目录下的 `outputs/` 文件夹中。同时，每次提取的结果会自动保存到 `history/` 文件夹（带时间戳命名），点击页面上的 **"📋 历史记录"** 按钮可查看、重新下载或删除之前的提取记录。
 
-## 使用示例
+## AI Skill 使用方式
+
+### 安装
+
+将 `skill/` 目录导入 AI Coding 平台（如 Eureka）：
 
 ```
-专利号：WO2004050828A2
-Seq ID 范围：1-50
-输出格式：Excel (.xlsx)
+skill/
+├── SKILL.md                    # Skill 文档（skill-auditor v3.4 认证）
+├── skill.manifest.json          # 依赖声明
+└── scripts/
+    ├── batch_extract.py         # 批量提取引擎（677行）
+    ├── extract_sequences.py      # 单专利提取引擎
+    ├── selftest.py              # 17 项自检
+    └── main.py                  # CLI 入口
 ```
 
-提取完成后，文件保存在 exe 同目录下的 `outputs/` 文件夹中。
+### 调用示例
+
+在 AI 平台中直接说出需求：
+- "提取 WO2020123456 的全部序列"
+- "批量提取 WO2020123456, WO2021123456, US2022001234A1 的蛋白质序列"
+- "提取专利 WO2020123456 中 Seq ID 1-50 的 DNA 序列，长度 100-1000"
+
+### Skill 依赖
+
+```
+requests    # 智慧芽 API 调用
+openpyxl     # Excel 导出
+```
+
+### Skill 与 exe 的能力对比
+
+| 能力 | 桌面 exe | AI Skill |
+|------|---------|---------|
+| 单专利提取 | ✅ | ✅ |
+| **批量多专利提取** | ❌ | ✅ 逗号/分号/换行分隔 |
+| Excel 导出 | ✅ | ✅ |
+| FASTA 导出 | ✅ | ✅ |
+| JSON 导出 | ❌ | ✅ |
+| 历史记录 | ✅ history/ | ❌ 由 AI 平台管理 |
+| 断点恢复 | ❌ | ✅ batch_state.json |
+| 进度回调 | ❌ | ✅ progress_callback |
+| NDJSON 即时落盘 | ❌ | ✅ |
+| 二创定制 | 改源码 | ✅ fork skill |
+| token 消耗 | 免费 | 消耗大模型 token |
+| 交互式专利号选择 | ✅ 多结果手动选择 | ❌ 取第一个（非交互式） |
 
 ## 环境要求
 
@@ -68,6 +131,27 @@ Seq ID 范围：1-50
 - **网络**：需要互联网连接（调用智慧芽 API）
 - **浏览器**：Chrome / Edge / Firefox 等现代浏览器
 - **无需安装**：exe 内置 Python + Flask 运行时，双击即用
+
+## 仓库结构
+
+```
+patent-sequence-exporter/
+├── app.py                      # exe 后端（Flask）
+├── templates/
+│   └── index.html              # exe 前端
+├── build_exe.py                # PyInstaller 构建脚本
+├── requirements.txt            # exe 依赖
+├── README.md
+├── LICENSE
+└── skill/                      # AI Skill 版本
+    ├── SKILL.md                # Skill 文档（skill-auditor v3.4 认证）
+    ├── skill.manifest.json
+    └── scripts/
+        ├── batch_extract.py     # 批量提取引擎
+        ├── extract_sequences.py # 单专利提取引擎
+        ├── selftest.py          # 自检脚本
+        └── main.py             # CLI 入口
+```
 
 ## 关于 API Key
 
@@ -124,9 +208,7 @@ MIT © Philip0910732123
 
 ## 相关项目
 
-- [patsnap-patent-skill-suite](https://github.com/Philip0910732123/patsnap-patent-skill-suite) — 专利撰写全流程 Skill 套件
-- [patent-oa-analysis-skills](https://github.com/Philip0910732123/patent-oa-analysis-skills) — 专利审查意见分析技能
-
+- [compound-structure-lookup](https://github.com/Philip0910732123/compound-structure-lookup) — 化合物结构信息批量查询工具（exe + AI Skill）
 
 ---
 
